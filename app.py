@@ -455,10 +455,19 @@ def compress_endpoint():
         track_file(output_file_path)
 
         # Read compressed PDF and encode to base64
+        logger.info(f"[{request_id}] Reading compressed file: {output_file_path}")
+        logger.info(f"[{request_id}] File exists: {output_file_path.exists()}")
+        if output_file_path.exists():
+            file_size_bytes = output_file_path.stat().st_size
+            file_size_mb = file_size_bytes / (1024 * 1024)
+            logger.info(f"[{request_id}] File size on disk: {file_size_mb:.2f} MB ({file_size_bytes} bytes)")
+
         with open(output_file_path, 'rb') as f:
             compressed_pdf_bytes = f.read()
 
+        logger.info(f"[{request_id}] Bytes read from file: {len(compressed_pdf_bytes)} bytes ({len(compressed_pdf_bytes)/(1024*1024):.2f} MB)")
         compressed_pdf_b64 = base64.b64encode(compressed_pdf_bytes).decode('utf-8')
+        logger.info(f"[{request_id}] Base64 encoded length: {len(compressed_pdf_b64)} characters")
 
         # Build response
         response_data = {

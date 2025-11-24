@@ -502,6 +502,11 @@
             const byteArray = new Uint8Array(byteNumbers);
             const blob = new Blob([byteArray], { type: 'application/pdf' });
 
+            // DEBUG: Log actual blob size
+            const blobSizeMB = (blob.size / (1024 * 1024)).toFixed(2);
+            console.log(`[DEBUG] Downloading PDF blob: ${blobSizeMB} MB (${blob.size} bytes)`);
+            alert(`Downloading: ${blobSizeMB} MB\nIf this doesn't match the compressed size shown above, there's a bug!`);
+
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
