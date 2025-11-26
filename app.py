@@ -7,9 +7,10 @@ import threading
 import time
 import uuid
 from datetime import datetime
+from functools import wraps
 from pathlib import Path
 
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, send_file
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from compress import compress_pdf
@@ -31,6 +32,22 @@ API_KEY = os.environ.get('API_KEY')
 
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 UPLOAD_FOLDER.mkdir(exist_ok=True)
+
+
+def require_api_key(f):
+    """Decorator to require API key authentication via Bearer token."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not API_KEY:
+            return f(*args, **kwargs)  # No key configured = open access
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({"success": False, "error": "Missing authorization"}), 401
+        if auth_header[7:] != API_KEY:
+            return jsonify({"success": False, "error": "Invalid API key"}), 403
+        return f(*args, **kwargs)
+    return decorated
+
 
 # File tracking for cleanup
 file_lock = threading.Lock()
@@ -96,6 +113,7 @@ def health():
 
 
 @app.route('/compress', methods=['POST'])
+@require_api_key
 def compress():
     """
     Compress a PDF file.
@@ -169,8 +187,12 @@ def compress():
 
 @app.route('/download/<filename>')
 def download(filename):
-    """Direct file download - bypasses base64/JavaScript."""
-    from flask import send_file
+    """
+    Direct file download endpoint.
+
+    Allows downloading compressed PDFs directly without base64 encoding.
+    Files are automatically cleaned up after FILE_RETENTION_SECONDS.
+    """
     file_path = UPLOAD_FOLDER / filename
     if not file_path.exists():
         return jsonify({"success": False, "error": "File not found"}), 404
